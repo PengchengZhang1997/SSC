@@ -24,8 +24,6 @@ class Batch_Balanced_Dataset(object):
         For example, when select_data is "MJ-ST" and batch_ratio is "0.5-0.5",
         the 50% of the batch is filled with MJ and the other 50% of the batch is filled with ST.
 
-        opt.batch_ratio: 一个batch中包含的不同数据集的比例
-        opt.total_data_usage_ratio: 对于每一个数据及，使用这个数据集的百分之多少，默认是1（100%）
         """
         print(opt.batch_size)
         self.opt = opt
@@ -37,7 +35,6 @@ class Batch_Balanced_Dataset(object):
         log.write(f'dataset_root: {opt.train_data}\nopt.select_data: {opt.select_data}\nopt.batch_ratio: {opt.batch_ratio}\n')
         assert len(opt.select_data) == len(opt.batch_ratio)
 
-        # 为每个dataloader应用collate函数，直接输出一整个batch，
         _AlignCollate = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
         self.data_loader_list = []
         self.dataloader_iter_list = []
@@ -48,7 +45,7 @@ class Batch_Balanced_Dataset(object):
             print(dashed_line)
             log.write(dashed_line + '\n')
             _dataset, _dataset_log = hierarchical_dataset(root=opt.train_data, opt=opt, select_data=[selected_d])
-            total_number_dataset = len(_dataset) # 当前数据集包含的图片数量
+            total_number_dataset = len(_dataset)
             log.write(_dataset_log)
 
             """
@@ -56,13 +53,11 @@ class Batch_Balanced_Dataset(object):
             ex) opt.total_data_usage_ratio = 1 indicates 100% usage, and 0.2 indicates 20% usage.
             See 4.2 section in our paper.
             """
-            number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio)) # 使用的比例
+            number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio))
             #if opt.fix_dataset_num != -1: number_dataset = opt.fix_dataset_num
             dataset_split = [number_dataset, total_number_dataset - number_dataset] # List[int] e.g. [50, 50]
             indices = range(total_number_dataset)
-            
-            # accumulate函数： _accumulate([1,2,3,4,5]) --> 1 3 6 10 15
-            # Subset就是根据indices取一个数据集的子集，indice根据opt.total_data_usage_ratio来取值
+
             _dataset, _ = [Subset(_dataset, indices[offset - length:offset])
                            for offset, length in zip(_accumulate(dataset_split), dataset_split)]
             selected_d_log = f'num total samples of {selected_d}: {total_number_dataset} x {opt.total_data_usage_ratio} (total_data_usage_ratio) = {len(_dataset)}\n'
@@ -90,21 +85,20 @@ class Batch_Balanced_Dataset(object):
         log.write(Total_batch_size_log + '\n')
         log.close()
 
-    def get_batch(self, meta_target_index=-1, no_pseudo=False): # 如果指定了meta_target_index，则忽略第meta_target_index个数据集
+    def get_batch(self, meta_target_index=-1, no_pseudo=False):
         balanced_batch_images = []
         balanced_batch_texts = []
         balanced_domain_ids = []
 
         for i, data_loader_iter in enumerate(self.dataloader_iter_list):
             if i == meta_target_index: continue
-            # 如果要求不采样伪标签数据集，且目前包含伪标签数据集则跳过
             if i == len(self.dataloader_iter_list) - 1 and no_pseudo and self.has_pseudo_label_dataset(): continue 
             try:
                 image, text = data_loader_iter.next()
                 balanced_batch_images.append(image)
                 balanced_batch_texts += text
                 balanced_domain_ids += [i] * len(text)
-            except StopIteration: # 如果一个数据集图片数量不够了，则重新构建迭代器进行训练
+            except StopIteration:
                 self.dataloader_iter_list[i] = iter(self.data_loader_list[i])
                 image, text = self.dataloader_iter_list[i].next()
                 balanced_batch_images.append(image)
@@ -118,7 +112,7 @@ class Batch_Balanced_Dataset(object):
 
         return balanced_batch_images, balanced_batch_texts, balanced_domain_ids
     
-    def get_meta_test_batch(self, meta_target_index=-1): # 如果指定了meta_target_index，则忽略第meta_target_index个数据集
+    def get_meta_test_batch(self, meta_target_index=-1):
         
         if meta_target_index == self.opt.source_num:
             assert len(self.data_loader_list) == self.opt.source_num + 1, 'There is no target dataset'
@@ -133,7 +127,7 @@ class Batch_Balanced_Dataset(object):
                     balanced_batch_images.append(image)
                     balanced_batch_texts += text
                     balanced_domain_ids += [i] * len(text)
-                except StopIteration: # 如果一个数据集图片数量不够了，则重新构建迭代器进行训练
+                except StopIteration:
                     self.dataloader_iter_list[i] = iter(self.data_loader_list[i])
                     image, text = self.dataloader_iter_list[i].next()
                     balanced_batch_images.append(image)
@@ -201,7 +195,7 @@ class Batch_Balanced_Sampler(object):
         dataset_len.insert(0,0)
         self.dataset_len = dataset_len
         self.start_index = list(itertools.accumulate(self.dataset_len))[:-1]
-        self.batch_size = batch_size # 每个子数据集的batchsize
+        self.batch_size = batch_size
         self.counter = 0
 
     def __len__(self):
@@ -225,8 +219,6 @@ class Batch_Balanced_Dataset0(object):
         For example, when select_data is "MJ-ST" and batch_ratio is "0.5-0.5",
         the 50% of the batch is filled with MJ and the other 50% of the batch is filled with ST.
 
-        opt.batch_ratio: 一个batch中包含的不同数据集的比例
-        opt.total_data_usage_ratio: 对于每一个数据及，使用这个数据集的百分之多少，默认是1（100%）
         """
         self.opt = opt
         log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
@@ -237,7 +229,6 @@ class Batch_Balanced_Dataset0(object):
         log.write(f'dataset_root: {opt.train_data}\nopt.select_data: {opt.select_data}\nopt.batch_ratio: {opt.batch_ratio}\n')
         assert len(opt.select_data) == len(opt.batch_ratio)
 
-        # 为每个dataloader应用collate函数，直接输出一整个batch，
         _AlignCollate = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
         self.data_loader_list = []
         self.dataloader_iter_list = []
@@ -255,7 +246,7 @@ class Batch_Balanced_Dataset0(object):
             print(dashed_line)
             log.write(dashed_line + '\n')
             _dataset, _dataset_log = hierarchical_dataset(root=opt.train_data, opt=opt, select_data=[selected_d])
-            total_number_dataset = len(_dataset) # 当前数据集包含的图片数量
+            total_number_dataset = len(_dataset)
             
             
             log.write(_dataset_log)
@@ -265,13 +256,11 @@ class Batch_Balanced_Dataset0(object):
             ex) opt.total_data_usage_ratio = 1 indicates 100% usage, and 0.2 indicates 20% usage.
             See 4.2 section in our paper.
             """
-            number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio)) # 使用的比例
+            number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio))
             if opt.fix_dataset_num != -1: number_dataset = opt.fix_dataset_num
             dataset_split = [number_dataset, total_number_dataset - number_dataset] # List[int] e.g. [50, 50]
             indices = range(total_number_dataset)
-            
-            # accumulate函数： _accumulate([1,2,3,4,5]) --> 1 3 6 10 15
-            # Subset就是根据indices取一个数据集的子集，indice根据opt.total_data_usage_ratio来取值
+
             _dataset, _ = [Subset(_dataset, indices[offset - length:offset])
                            for offset, length in zip(_accumulate(dataset_split), dataset_split)]
             selected_d_log = f'num total samples of {selected_d}: {total_number_dataset} x {opt.total_data_usage_ratio} (total_data_usage_ratio) = {len(_dataset)}\n'
@@ -307,10 +296,9 @@ class Batch_Balanced_Dataset0(object):
         log.write(Total_batch_size_log + '\n')
         log.close()
 
-    def get_batch(self, meta_target_index=-1, no_pseudo=False): # 如果指定了meta_target_index，则忽略第meta_target_index个数据集
+    def get_batch(self, meta_target_index=-1, no_pseudo=False):
         
         imgs, texts = next(self.data_loader)
-        # 如果未指定或指定为伪标签数据集，则直接返回所有
         if meta_target_index == -1 or meta_target_index >= len(self.batch_size_list): return imgs, texts
         start_index_list = list(itertools.accumulate(self.batch_size_list))
         start_index_list.insert(0, 0)
@@ -334,7 +322,7 @@ class Batch_Balanced_Dataset0(object):
 
         return ret_imgs, ret_texts
 
-    def get_meta_test_batch(self, meta_target_index=-1): # 如果指定了meta_target_index，则忽略第meta_target_index个数据集
+    def get_meta_test_batch(self, meta_target_index=-1):
         
         assert meta_target_index != -1, 'Meta target index should be specified'
         if meta_target_index >= len(self.batch_size_list) and self.has_pseudo_label_dataset(): 
@@ -380,10 +368,10 @@ def hierarchical_dataset(root, opt, select_data='/', pseudo=False):
     dataset_log += '\n'
     for dirpath, dirnames, filenames in os.walk(root+'/', followlinks=True):
         print(dirpath, dirnames, filenames)
-        if not dirnames: # 当dirnames为空，即当前dirpath下只包含（lmdb)文件时，进行操作
+        if not dirnames:
             select_flag = False
-            for selected_d in select_data: # select_data为字符串，e.g. 'MJ','ST'
-                if selected_d in dirpath: # 如果dirpath中包含了select_data 说明当前的目录是目标目录，select_flag置True
+            for selected_d in select_data:
+                if selected_d in dirpath:
                     select_flag = True
                     break
 
@@ -394,7 +382,6 @@ def hierarchical_dataset(root, opt, select_data='/', pseudo=False):
                 dataset_log += f'{sub_dataset_log}\n'
                 dataset_list.append(dataset)
 
-    # 把所有数据集拼接在一起，以MJ为例，dataset_list中包括了MJ_train, MJ_valid和MJ_test
     concatenated_dataset = ConcatDataset(dataset_list)
 
     return concatenated_dataset, dataset_log
@@ -443,7 +430,6 @@ class LmdbDataset(Dataset):
                     # By default, images containing characters which are not in opt.character are filtered.
                     # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
                     out_of_char = f'[^{self.opt.character}]'
-                    # if re.search(out_of_char, label.lower()): # 根据车牌场景进行了修改，因为车牌里只有大写字母，如果调用了lower，因为opt.char里面不包含小写字母，则所有车牌均被过滤
                     if re.search(out_of_char, label):
                         continue
 

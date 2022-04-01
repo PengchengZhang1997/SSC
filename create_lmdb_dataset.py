@@ -1,9 +1,5 @@
 """ a modified version of CRNN torch repository https://github.com/bgshih/crnn/blob/master/tool/create_dataset.py """
-'''
-python create_lmdb_dataset.py --inputPath data/ --gtFile data/gt.txt --outputPath result/
-其中，inputPath和gtFile中的路径拼起来为实际图片路径
-注意要把label中的空格换为\t  $ sed -s 's/ /\t/g' label.txt > label_t.txt
-'''
+
 import fire
 import os
 import lmdb

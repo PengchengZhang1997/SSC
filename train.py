@@ -31,7 +31,7 @@ def train(opt):
 
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
-    train_dataset = Batch_Balanced_Dataset(opt) # 组合数据集
+    train_dataset = Batch_Balanced_Dataset(opt)
 
     log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
     AlignCollate_valid = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
@@ -156,10 +156,10 @@ def train(opt):
             log_loss_aug = torch.sum(ee_softmax_aug * ee_log_aug)
             cost += log_loss
             cost += id_loss
-            cost += scloss
+            cost += 1 * scloss
             cost += log_loss_aug
             cost += id_loss_aug
-            cost += scloss_aug
+            cost += 1 * scloss_aug
 
             model.zero_grad()
             cost.backward() 
@@ -184,7 +184,7 @@ def train(opt):
 
         for key, param in model.state_dict().items():
             if key.find('running') != -1 or key.find('tracked') != -1 or key.find('delta') != -1 or key.find('hat') != -1:
-                new_weights_dict[key] = buffer_buffer[buffer_index] # buffer要用inner loop中的状态，因为外部BN层没有被调用过，tracking的均值和方差都为0
+                new_weights_dict[key] = buffer_buffer[buffer_index]
                 buffer_index += 1
                 continue
             new_weights_dict[key] = old_param[index]
