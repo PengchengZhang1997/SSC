@@ -2,56 +2,53 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class VGG_FeatureExtractor(nn.Module):
-    """ FeatureExtractor of CRNN (https://arxiv.org/pdf/1507.05717.pdf) """
 
     def __init__(self, input_channel, output_channel=512):
         super(VGG_FeatureExtractor, self).__init__()
         self.output_channel = [int(output_channel / 8), int(output_channel / 4),
-                               int(output_channel / 2), output_channel]  # [64, 128, 256, 512]
+                               int(output_channel / 2), output_channel]
         self.ConvNet = nn.Sequential(
             nn.Conv2d(input_channel, self.output_channel[0], 3, 1, 1), nn.ReLU(True),
-            nn.MaxPool2d(2, 2),  # 64x16x50
+            nn.MaxPool2d(2, 2),
             nn.Conv2d(self.output_channel[0], self.output_channel[1], 3, 1, 1), nn.ReLU(True),
-            nn.MaxPool2d(2, 2),  # 128x8x25
-            nn.Conv2d(self.output_channel[1], self.output_channel[2], 3, 1, 1), nn.ReLU(True),  # 256x8x25
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(self.output_channel[1], self.output_channel[2], 3, 1, 1), nn.ReLU(True),
             nn.Conv2d(self.output_channel[2], self.output_channel[2], 3, 1, 1), nn.ReLU(True),
-            nn.MaxPool2d((2, 1), (2, 1)),  # 256x4x25
+            nn.MaxPool2d((2, 1), (2, 1)),
             nn.Conv2d(self.output_channel[2], self.output_channel[3], 3, 1, 1, bias=False),
-            nn.BatchNorm2d(self.output_channel[3]), nn.ReLU(True),  # 512x4x25
+            nn.BatchNorm2d(self.output_channel[3]), nn.ReLU(True),
             nn.Conv2d(self.output_channel[3], self.output_channel[3], 3, 1, 1, bias=False),
             nn.BatchNorm2d(self.output_channel[3]), nn.ReLU(True),
-            nn.MaxPool2d((2, 1), (2, 1)),  # 512x2x25
-            nn.Conv2d(self.output_channel[3], self.output_channel[3], 2, 1, 0), nn.ReLU(True))  # 512x1x24
+            nn.MaxPool2d((2, 1), (2, 1)),
+            nn.Conv2d(self.output_channel[3], self.output_channel[3], 2, 1, 0), nn.ReLU(True))
 
     def forward(self, input):
         return self.ConvNet(input)
 
 
 class RCNN_FeatureExtractor(nn.Module):
-    """ FeatureExtractor of GRCNN (https://papers.nips.cc/paper/6637-gated-recurrent-convolution-neural-network-for-ocr.pdf) """
 
     def __init__(self, input_channel, output_channel=512):
         super(RCNN_FeatureExtractor, self).__init__()
         self.output_channel = [int(output_channel / 8), int(output_channel / 4),
-                               int(output_channel / 2), output_channel]  # [64, 128, 256, 512]
+                               int(output_channel / 2), output_channel]
         self.ConvNet = nn.Sequential(
             nn.Conv2d(input_channel, self.output_channel[0], 3, 1, 1), nn.ReLU(True),
-            nn.MaxPool2d(2, 2),  # 64 x 16 x 50
+            nn.MaxPool2d(2, 2),
             GRCL(self.output_channel[0], self.output_channel[0], num_iteration=5, kernel_size=3, pad=1),
-            nn.MaxPool2d(2, 2),  # 64 x 8 x 25
+            nn.MaxPool2d(2, 2),
             GRCL(self.output_channel[0], self.output_channel[1], num_iteration=5, kernel_size=3, pad=1),
-            nn.MaxPool2d(2, (2, 1), (0, 1)),  # 128 x 4 x 26
+            nn.MaxPool2d(2, (2, 1), (0, 1)),
             GRCL(self.output_channel[1], self.output_channel[2], num_iteration=5, kernel_size=3, pad=1),
-            nn.MaxPool2d(2, (2, 1), (0, 1)),  # 256 x 2 x 27
+            nn.MaxPool2d(2, (2, 1), (0, 1)),
             nn.Conv2d(self.output_channel[2], self.output_channel[3], 2, 1, 0, bias=False),
-            nn.BatchNorm2d(self.output_channel[3]), nn.ReLU(True))  # 512 x 1 x 26
+            nn.BatchNorm2d(self.output_channel[3]), nn.ReLU(True))
 
     def forward(self, input):
         return self.ConvNet(input)
 
 
 class ResNet_FeatureExtractor(nn.Module):
-    """ FeatureExtractor of FAN (http://openaccess.thecvf.com/content_ICCV_2017/papers/Cheng_Focusing_Attention_Towards_ICCV_2017_paper.pdf) """
 
     def __init__(self, input_channel, output_channel=512):
         super(ResNet_FeatureExtractor, self).__init__()
@@ -60,7 +57,6 @@ class ResNet_FeatureExtractor(nn.Module):
     def forward(self, input):
         return self.ConvNet(input)
 
-# For Gated RCNN
 class GRCL(nn.Module):
 
     def __init__(self, input_channel, output_channel, num_iteration, kernel_size, pad):
@@ -77,9 +73,6 @@ class GRCL(nn.Module):
         self.GRCL = nn.Sequential(*self.GRCL)
 
     def forward(self, input):
-        """ The input of GRCL is consistant over time t, which is denoted by u(0)
-        thus wgf_u / wf_u is also consistant over time t.
-        """
         wgf_u = self.wgf_u(input)
         wf_u = self.wf_u(input)
         x = F.relu(self.BN_x_init(wf_u))
@@ -126,7 +119,6 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def _conv3x3(self, in_planes, out_planes, stride=1):
-        "3x3 convolution with padding"
         return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                          padding=1, bias=False)
 

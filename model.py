@@ -1,19 +1,3 @@
-"""
-Copyright (c) 2019-present NAVER Corp.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 import torch
 import torch.nn as nn
 from modules.scl import SCL
@@ -46,8 +30,8 @@ class Model(nn.Module):
             self.FeatureExtraction = ResNet_FeatureExtractor(opt.input_channel, opt.output_channel)
         else:
             raise Exception('No FeatureExtraction module specified')
-        self.FeatureExtraction_output = opt.output_channel  # int(imgH/16-1) * 512
-        self.AdaptiveAvgPool = nn.AdaptiveAvgPool2d((None, 1))  # Transform final (imgH/16-1) -> 1
+        self.FeatureExtraction_output = opt.output_channel
+        self.AdaptiveAvgPool = nn.AdaptiveAvgPool2d((None, 1))
 
         """ Sequence modeling"""
         self.SequenceModeling = nn.Sequential(
@@ -77,17 +61,14 @@ class Model(nn.Module):
         self.scl = SCL()
 
     def forward(self, input, text, is_train=True, is_domain=False):
-        '''
-        is_domain: 为True时同时返回特征提取部分的特征和最终序列编码后的输出
-        '''
         """ Transformation stage """
         if not self.stages['Trans'] == "None":
             input = self.Transformation(input)
 
         """ Feature extraction stage """
         visual_feature = self.FeatureExtraction(input)
-        visual_feature = self.AdaptiveAvgPool(visual_feature.permute(0, 3, 1, 2))  # [b, c, h, w] -> [b, w, c, h]
-        visual_feature = visual_feature.squeeze(3) # b, t, c
+        visual_feature = self.AdaptiveAvgPool(visual_feature.permute(0, 3, 1, 2))
+        visual_feature = visual_feature.squeeze(3)
 
         bb = self.sigmoid(self.l2(self.relu(self.l1(torch.mean(visual_feature, 1)))))
 
@@ -117,7 +98,6 @@ class Model(nn.Module):
 
             style_ff = self.l3(torch.mean(style_feature, 1))
 
-            # augmented process
             mid_len = visual_feature.shape[1] // 2
             visual_feature_aug = torch.cat((visual_feature[:, mid_len:, ], visual_feature[:, :mid_len, ]), dim=1)
 
@@ -140,7 +120,6 @@ class Model(nn.Module):
 
             style_ff_aug = self.l3(torch.mean(style_feature_aug, 1))
 
-            # style consistency loss
             style_feature_pro = self.project(style_feature)
             style_feature_aug_pro = self.project(style_feature_aug)
             contextual_feature_new_pro = self.project(contextual_feature_new)
@@ -148,11 +127,11 @@ class Model(nn.Module):
 
             seq_style = torch.mean(style_feature_pro, 1)
             other_fea = torch.stack([style_feature_aug_pro, contextual_feature_new_pro, contextual_feature_new_aug_pro], 1)
-            scloss = self.scl(seq_style, other_fea, 0.1) # T = 0.1
+            scloss = self.scl(seq_style, other_fea, 0.1)
 
             seq_style_aug = torch.mean(style_feature_aug_pro, 1)
             other_fea_aug = torch.stack([style_feature_pro, contextual_feature_new_pro, contextual_feature_new_aug_pro], 1)
-            scloss_aug= self.scl(seq_style_aug, other_fea_aug, 0.1) # T = 0.1
+            scloss_aug= self.scl(seq_style_aug, other_fea_aug, 0.1)
 
             return prediction, ee_softmax, ee_log, style_ff, ee_softmax_aug, ee_log_aug, style_ff_aug, scloss, scloss_aug
 

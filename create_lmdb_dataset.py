@@ -1,5 +1,3 @@
-""" a modified version of CRNN torch repository https://github.com/bgshih/crnn/blob/master/tool/create_dataset.py """
-
 import fire
 import os
 import lmdb
@@ -26,14 +24,6 @@ def writeCache(env, cache):
 
 
 def createDataset(inputPath, gtFile, outputPath, checkValid=True):
-    """
-    Create LMDB dataset for training and evaluation.
-    ARGS:
-        inputPath  : input folder path where starts imagePath
-        outputPath : LMDB output path
-        gtFile     : list of image path and label
-        checkValid : if true, check the validity of every image
-    """
     os.makedirs(outputPath, exist_ok=True)
     env = lmdb.open(outputPath, map_size=1099511627776)
     cache = {}
@@ -46,11 +36,6 @@ def createDataset(inputPath, gtFile, outputPath, checkValid=True):
     for i in range(nSamples):
         imagePath, label = datalist[i].strip('\n').split('\t')
         imagePath = os.path.join(inputPath, imagePath)
-
-        # # only use alphanumeric data
-        # if re.search('[^a-zA-Z0-9]', label):
-        #     continue
-
         if not os.path.exists(imagePath):
             print('%s does not exist' % imagePath)
             continue

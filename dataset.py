@@ -47,15 +47,8 @@ class Batch_Balanced_Dataset(object):
             _dataset, _dataset_log = hierarchical_dataset(root=opt.train_data, opt=opt, select_data=[selected_d])
             total_number_dataset = len(_dataset)
             log.write(_dataset_log)
-
-            """
-            The total number of data can be modified with opt.total_data_usage_ratio.
-            ex) opt.total_data_usage_ratio = 1 indicates 100% usage, and 0.2 indicates 20% usage.
-            See 4.2 section in our paper.
-            """
             number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio))
-            #if opt.fix_dataset_num != -1: number_dataset = opt.fix_dataset_num
-            dataset_split = [number_dataset, total_number_dataset - number_dataset] # List[int] e.g. [50, 50]
+            dataset_split = [number_dataset, total_number_dataset - number_dataset]
             indices = range(total_number_dataset)
 
             _dataset, _ = [Subset(_dataset, indices[offset - length:offset])
@@ -135,7 +128,6 @@ class Batch_Balanced_Dataset(object):
                     balanced_domain_ids += [i] * len(text)
                 except ValueError:
                     pass
-        # print(balanced_batch_images[0].shape)
         balanced_batch_images = torch.cat(balanced_batch_images, 0)
         balanced_domain_ids = torch.tensor(balanced_domain_ids)
 
@@ -147,7 +139,7 @@ class Batch_Balanced_Dataset(object):
         batch_size = len(dataset) if len(dataset) <= avg_batch_size else avg_batch_size
         self_training_loader = torch.utils.data.DataLoader(
                         dataset, batch_size=batch_size,
-                        shuffle=True,  # 'True' to check training progress with validation function.
+                        shuffle=True,
                         num_workers=int(opt.workers), pin_memory=False, collate_fn=_AlignCollate, drop_last=True)
         if self.has_pseudo_label_dataset():
             self.data_loader_list[opt.source_num] = self_training_loader
@@ -161,7 +153,7 @@ class Batch_Balanced_Dataset(object):
         batch_size = len(dataset) if len(dataset) <= avg_batch_size else avg_batch_size
         self_training_loader = torch.utils.data.DataLoader(
                         dataset, batch_size=batch_size,
-                        shuffle=True,  # 'True' to check training progress with validation function.
+                        shuffle=True,
                         num_workers=int(opt.workers), pin_memory=False, collate_fn=self_training_collate)
         if self.has_pseudo_label_dataset():
             self.data_loader_list[opt.source_num] = self_training_loader
@@ -175,7 +167,7 @@ class Batch_Balanced_Dataset(object):
         batch_size = len(dataset) if len(dataset) <= avg_batch_size else avg_batch_size
         self_training_loader = torch.utils.data.DataLoader(
                         dataset, batch_size=batch_size,
-                        shuffle=True,  # 'True' to check training progress with validation function.
+                        shuffle=True,
                         num_workers=int(opt.workers), pin_memory=False, collate_fn=self_training_collate)
         if self.has_residual_pseudo_label_dataset():
             self.data_loader_list[opt.source_num + 1] = self_training_loader
@@ -214,12 +206,6 @@ class Batch_Balanced_Sampler(object):
 class Batch_Balanced_Dataset0(object):
 
     def __init__(self, opt):
-        """
-        Modulate the data ratio in the batch.
-        For example, when select_data is "MJ-ST" and batch_ratio is "0.5-0.5",
-        the 50% of the batch is filled with MJ and the other 50% of the batch is filled with ST.
-
-        """
         self.opt = opt
         log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
         dashed_line = '-' * 80
@@ -247,18 +233,10 @@ class Batch_Balanced_Dataset0(object):
             log.write(dashed_line + '\n')
             _dataset, _dataset_log = hierarchical_dataset(root=opt.train_data, opt=opt, select_data=[selected_d])
             total_number_dataset = len(_dataset)
-            
-            
             log.write(_dataset_log)
-
-            """
-            The total number of data can be modified with opt.total_data_usage_ratio.
-            ex) opt.total_data_usage_ratio = 1 indicates 100% usage, and 0.2 indicates 20% usage.
-            See 4.2 section in our paper.
-            """
             number_dataset = int(total_number_dataset * float(opt.total_data_usage_ratio))
             if opt.fix_dataset_num != -1: number_dataset = opt.fix_dataset_num
-            dataset_split = [number_dataset, total_number_dataset - number_dataset] # List[int] e.g. [50, 50]
+            dataset_split = [number_dataset, total_number_dataset - number_dataset]
             indices = range(total_number_dataset)
 
             _dataset, _ = [Subset(_dataset, indices[offset - length:offset])
@@ -309,8 +287,7 @@ class Batch_Balanced_Dataset0(object):
             ret_imgs.extend(imgs[start_index_list[i] : start_index_list[i] + self.batch_size_list[i]])
             ret_texts.extend(texts[start_index_list[i] : start_index_list[i] + self.batch_size_list[i]])
         ret_imgs = torch.stack(ret_imgs, 0)
-        
-        # assert self.has_pseudo_label_dataset() == True, 'Pseudo label dataset can\'t be empty'
+
         if self.has_pseudo_label_dataset():
             try:
                 psuedo_imgs, pseudo_texts = next(self.pseudo_dataloader_iter)
@@ -351,7 +328,7 @@ class Batch_Balanced_Dataset0(object):
         self.pseudo_batch_size = batch_size
         self.pseudo_dataloader = torch.utils.data.DataLoader(
                         dataset, batch_size=batch_size,
-                        shuffle=True,  # 'True' to check training progress with validation function.
+                        shuffle=True,
                         num_workers=int(opt.workers), pin_memory=False, collate_fn=self_training_collate)
         self.pseudo_dataloader_iter = iter(self.pseudo_dataloader)
 
@@ -361,7 +338,6 @@ class Batch_Balanced_Dataset0(object):
 
 
 def hierarchical_dataset(root, opt, select_data='/', pseudo=False):
-    """ select_data='/' contains all sub-directory of root directory """
     dataset_list = []
     dataset_log = f'dataset_root:    {root}\t dataset: {select_data[0]}'
     print(dataset_log)
@@ -403,32 +379,17 @@ class LmdbDataset(Dataset):
             self.nSamples = nSamples
 
             if self.opt.data_filtering_off:
-                # for fast check or benchmark evaluation with no filtering
                 self.filtered_index_list = [index + 1 for index in range(self.nSamples)]
             else:
-                """ Filtering part
-                If you want to evaluate IC15-2077 & CUTE datasets which have special character labels,
-                use --data_filtering_off and only evaluate on alphabets and digits.
-                see https://github.com/clovaai/deep-text-recognition-benchmark/blob/6593928855fb7abb999a99f428b3e4477d4ae356/dataset.py#L190-L192
-
-                And if you want to evaluate them with the model trained with --sensitive option,
-                use --sensitive and --data_filtering_off,
-                see https://github.com/clovaai/deep-text-recognition-benchmark/blob/dff844874dbe9e0ec8c5a52a7bd08c7f20afe704/test.py#L137-L144
-                """
                 self.filtered_index_list = []
                 for index in range(self.nSamples):
-                    index += 1  # lmdb starts with 1
+                    index += 1
                     label_key = 'label-%09d'.encode() % index
                     label = txn.get(label_key).decode('utf-8')
-                    # print(label)
 
                     if len(label) > self.opt.batch_max_length:
-                        # print(f'The length of the label is longer than max_length: length
-                        # {len(label)}, {label} in dataset {self.root}')
                         continue
 
-                    # By default, images containing characters which are not in opt.character are filtered.
-                    # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
                     out_of_char = f'[^{self.opt.character}]'
                     if re.search(out_of_char, label):
                         continue
@@ -455,23 +416,18 @@ class LmdbDataset(Dataset):
             buf.seek(0)
             try:
                 if self.opt.rgb:
-                    img = Image.open(buf).convert('RGB')  # for color image
+                    img = Image.open(buf).convert('RGB')
                 else:
                     img = Image.open(buf).convert('L')
 
             except IOError:
                 print(f'Corrupted image for {index}')
-                # make dummy image and dummy label for corrupted image.
                 if self.opt.rgb:
                     img = Image.new('RGB', (self.opt.imgW, self.opt.imgH))
                 else:
                     img = Image.new('L', (self.opt.imgW, self.opt.imgH))
                 label = '[dummy_label]'
 
-            # if not self.opt.sensitive:
-            #     label = label.lower()
-
-            # We only train and evaluate on alphanumerics (or pre-defined character set in train.py)
             out_of_char = f'[^{self.opt.character}]'
             label = re.sub(out_of_char, '', label)
 
@@ -500,13 +456,12 @@ class RawDataset(Dataset):
 
         try:
             if self.opt.rgb:
-                img = Image.open(self.image_path_list[index]).convert('RGB')  # for color image
+                img = Image.open(self.image_path_list[index]).convert('RGB')
             else:
                 img = Image.open(self.image_path_list[index]).convert('L')
 
         except IOError:
             print(f'Corrupted image for {index}')
-            # make dummy image and dummy label for corrupted image.
             if self.opt.rgb:
                 img = Image.new('RGB', (self.opt.imgW, self.opt.imgH))
             else:
@@ -542,8 +497,8 @@ class NormalizePAD(object):
         img.sub_(0.5).div_(0.5)
         c, h, w = img.size()
         Pad_img = torch.FloatTensor(*self.max_size).fill_(0)
-        Pad_img[:, :, :w] = img  # right pad
-        if self.max_size[2] != w:  # add border Pad
+        Pad_img[:, :, :w] = img
+        if self.max_size[2] != w:
             Pad_img[:, :, w:] = img[:, :, w - 1].unsqueeze(2).expand(c, h, self.max_size[2] - w)
 
         return Pad_img
@@ -560,7 +515,7 @@ class AlignCollate(object):
         batch = filter(lambda x: x is not None, batch)
         images, labels = zip(*batch)
 
-        if self.keep_ratio_with_pad:  # same concept with 'Rosetta' paper
+        if self.keep_ratio_with_pad:
             resized_max_w = self.imgW
             input_channel = 3 if images[0].mode == 'RGB' else 1
             transform = NormalizePAD((input_channel, self.imgH, resized_max_w))
@@ -576,7 +531,6 @@ class AlignCollate(object):
 
                 resized_image = image.resize((resized_w, self.imgH), Image.BICUBIC)
                 resized_images.append(transform(resized_image))
-                # resized_image.save('./image_test/%d_test.jpg' % w)
 
             image_tensors = torch.cat([t.unsqueeze(0) for t in resized_images], 0)
 
